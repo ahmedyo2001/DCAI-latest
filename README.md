@@ -15,4 +15,15 @@ In Confidence Learning, in each iteration we change positive labels to be negati
 Folder Structure:
 
 pu_learning and confidence_learning files which are .py are the classes themselfs which are used in the 2 jupyter notebook files named implementation which are the main implementations of the code. 
-The logreg and the logreg confidence files are the results for logistic regression in pu_learning and confidence learning respectively 
+The logreg and the logreg confidence files are the results for logistic regression in pu_learning and confidence learning respectively which gave the most promising results.
+ 
+
+Team Members:
+Yousef Ashraf
+Mostafa Farahat
+Ahmed Yehia 49-0382
+
+To test the project:
+1-download the folder
+2-run the jupyter notebook for pu_learning (which is called pu_learning implementation)after running it will download the csv files.
+3-exactly the same thing for confidence learning
