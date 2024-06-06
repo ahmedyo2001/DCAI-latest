@@ -16,12 +16,12 @@ class PuLearning:
         param hold_out_ratio: ratio specified to hold during training to compute 'c'
         """
         self.name=name
-        self.df=pd.DataFrame(columns=["accuracy while poisoned",'Accuracy after heal',"noofchanged",'poisoned_to_neg','poisoned_to_pos','healed to -ve','healed to +ve','changednegtopos',"changedpostoneg"])
+        self.df=pd.DataFrame(columns=["accuracy while poisoned",'Accuracy after heal',"no changed",'+ve to -ve','-ve to +ve','healed to -ve','healed to +ve', 'c value'])
         self.model = model
         self.c = None
         self.confidence_func = confidence_func
 
-    def fit(self, x: np.ndarray, y: np.ndarray):
+    def fit(self, x: np.ndarray, y: np.ndarray, percentile=25):
         """
         This function finds all positive labels, holds fraction specified in the constructor, fits
         the remaining features and labels with the model specified in the constructor, and finally
@@ -52,7 +52,7 @@ class PuLearning:
         # Compute c as the mean probability of the positive examples
         # self.c =  np.percentile(pos_hold_prob, 25)
         # Compute c as the truncated mean of the positive examples
-        self.c = self.calculate_dynamic_threshold(pos_hold_prob)
+        self.c = self.calculate_dynamic_threshold(pos_hold_prob, percentile)
 
 
 
@@ -78,8 +78,6 @@ class PuLearning:
 
         x_neg = x[neg_ind]
         prob = self.confidence_func(self.model, x_neg)[:, 1]
-        #TODO: Remove after testing
-        print(prob)
         pred_labels = (prob >= self.c).astype(float)
         y[neg_ind] = pred_labels
         return pd.Series(y)
@@ -89,19 +87,14 @@ class PuLearning:
         acc=accuracy_score(y_test, y_pred)
         return acc
     
-    def datarecorder(self,old_y,new_y,poisoned_y,x_test,y_test,noofchanged,poisonedacc):
+    def datarecorder(self,old_y,new_y,poisoned_y,x_test,y_test,nochanged,poisonedacc):
         y_pred = self.model.predict(x_test)
         acc=accuracy_score(y_test, y_pred)
-        pos_to_neg = np.sum((old_y == 1) & (poisoned_y == 0))
-        neg_to_pos = np.sum((old_y == 0) & (poisoned_y == 1))
+        pos_to_neg = np.sum((old_y == 1) & (new_y == 0))
+        neg_to_pos = np.sum((old_y == 0) & (new_y == 1))
         healedtoneg = np.sum((new_y == 0) & (poisoned_y == 1))
         healedtopos = np.sum((new_y == 1) & (poisoned_y == 0))
-        changedpostoneg=np.sum((old_y == 1) & (new_y == 0))
-        changednegtopos=np.sum((old_y == 0) & (new_y == 1))
-        self.df = pd.concat([self.df,pd.DataFrame({"accuracy while poisoned":poisonedacc,'Accuracy after heal': acc,"noofchanged":noofchanged, 'poisoned_to_neg': pos_to_neg, 'poisoned_to_pos': neg_to_pos,'healed to -ve':healedtoneg,'healed to +ve':healedtopos, 'changednegtopos':changednegtopos, "changedpostoneg":changedpostoneg},index=[self.name])],ignore_index=True)
-
-   
-
+        self.df = pd.concat([self.df,pd.DataFrame({"accuracy while poisoned":poisonedacc,'Accuracy after heal': acc,"no changed":nochanged, '+ve to -ve': pos_to_neg, '-ve to +ve': neg_to_pos,'healed to -ve':healedtoneg,'healed to +ve':healedtopos, 'c value': self.c},index=[self.name])],ignore_index=True)
     def calculate_dynamic_threshold(self, pos_hold_prob, percentile=25, trim_percent=0.1):
         trimmed_mean_prob = trim_mean(pos_hold_prob, trim_percent)
         std_dev_prob = np.std(pos_hold_prob)  # You can still use the standard deviation for scaling
@@ -110,7 +103,7 @@ class PuLearning:
 
 
 def rf_proba(model, X):
-    tree_probas = np.array([tree.predict_proba(X) for tree in model.estimators_])
+    tree_probas = np.array([dt_proba(tree, X) for tree in model.estimators_])
     return tree_probas.mean(axis=0)
 
 def dt_proba(model, X):
